@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hydration Bar</title>
+  <style>
+    :root{
+      --width: 520px;
+      --bg: #f7fbff;
+      --card: #ffffff;
+      --muted: #6b8592;
+      --bar-bg: #e6f4ff;
+      --bar-outline: #d8ecff;
+      --blue-1: #d4f1ff;
+      --blue-2: #7ad0ff;
+      --accent: #0b84ff;
+      --shadow: 0 10px 28px rgba(6,24,42,0.06);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    /* Card */
+    .widget{
+      width: min(var(--width), 100%);
+      max-width: 760px;
+      background: linear-gradient(180deg,var(--bg),#ffffff 70%);
+      border-radius: 14px;
+      padding: 16px;
+      box-sizing: border-box;
+      box-shadow: var(--shadow);
+      color: #0e2a36;
+    }
+
+    .head {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    }
+    .title {
+      display:flex;
+      flex-direction:column;
+    }
+    .title .main { font-weight:700; font-size:16px; }
+    .title .sub { font-size:12px; color:var(--muted); margin-top:4px; }
+
+    .status {
+      text-align:right;
+      font-weight:700;
+      color:var(--accent);
+      font-size:14px;
+      min-width:140px;
+    }
+
+    /* Controls row for segments */
+    .segment-controls {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      margin-bottom:10px;
+      flex-wrap:wrap;
+    }
+    .segment-controls .lbl { font-size:13px; color:var(--muted); font-weight:700; }
+
+    .seg-stepper {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      background: #fff;
+      border-radius:10px;
+      padding:6px;
+      border:1px solid #eef9fb;
+    }
+    .seg-stepper button {
+      background:var(--card);
+      border:1px solid #e6f3ff;
+      padding:6px 10px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:700;
+      color:var(--accent);
+    }
+    .seg-stepper input[type=number]{
+      width:70px;
+      text-align:center;
+      border:0;
+      font-weight:800;
+      color:var(--accent);
+      background:transparent;
+      -moz-appearance: textfield;
+    }
+
+    /* Bars layout */
+    .bars-wrap {
+      display:flex;
+      gap:12px;
+      align-items:end;
+      justify-content:center;
+      padding:10px 6px 14px;
+      flex-wrap:nowrap;
+      overflow:auto;
+      scrollbar-width: thin;
+    }
+
+    .bar {
+      width:34px;
+      height:160px;
+      min-width:34px;
+      border-radius:10px;
+      background: linear-gradient(180deg,var(--bar-bg),#f7fcff);
+      border:1px solid var(--bar-outline);
+      position:relative;
+      overflow:hidden;
+      cursor:pointer;
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      box-shadow: 0 3px 10px rgba(11,132,255,0.04) inset;
+      transition: transform .12s ease, box-shadow .12s ease;
+      outline: none;
+      flex: 0 0 auto;
+    }
+    .bar:active { transform: translateY(2px); }
+    .bar:focus { box-shadow: 0 0 0 6px rgba(11,132,255,0.08); border-radius:12px; }
+
+    .fill {
+      width:100%;
+      height:0%;
+      background: linear-gradient(180deg,var(--blue-2),var(--blue-1));
+      border-radius:8px 8px 0 0;
+      transform-origin: 50% 100%;
+      transition: height 360ms cubic-bezier(.2,.9,.2,1);
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      position:relative;
+    }
+
+    /* little badge showing sip number inside filled part */
+    .badge {
+      font-size:11px;
+      color:#04303f;
+      background: rgba(255,255,255,0.6);
+      padding:4px 6px;
+      border-radius:999px;
+      margin-bottom:8px;
+      font-weight:700;
+      display:none;
+    }
+    .bar.filled .badge { display:block; }
+
+    /* Controls */
+    .controls {
+      display:flex;
+      gap:8px;
+      justify-content:center;
+      margin-top:12px;
+      flex-wrap:wrap;
+    }
+    button {
+      background:var(--card);
+      border:1px solid #e6f3ff;
+      padding:8px 12px;
+      border-radius:10px;
+      cursor:pointer;
+      font-weight:700;
+      color:var(--accent);
+    }
+    button:hover { transform: translateY(-2px); }
+
+    .footer { margin-top:12px; font-size:12px; color:var(--muted); text-align:center; }
+
+    /* Confetti small canvas */
+    #confettiCanvas { position: absolute; left:0; top:0; pointer-events:none; }
+
+    /* Responsive */
+    @media (max-width:520px){
+      .bars-wrap { gap:8px; padding:8px 4px 12px; }
+      .bar { width:28px; height:130px; min-width:28px; }
+      .seg-stepper input[type=number]{ width:56px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="widget" id="widget" aria-label="Daily hydration dynamic energy bar widget">
+    <div class="head">
+      <div class="title">
+        <div class="main">Hydration Tracker</div>
+        <div class="sub">Click the bar to track your sips !</div>
+      </div>
+      <div class="status" id="statusText" aria-live="polite">0 / 8 (0%)</div>
+    </div>
+
+    <div class="segment-controls" aria-hidden="false">
+      <div class="lbl">Segments</div>
+      <div class="seg-stepper" role="group" aria-label="Segment count controls">
+        <button id="decSegments" aria-label="Decrease segments">−</button>
+        <input id="segmentsInput" type="number" min="1" max="64" step="1" value="8" aria-label="Number of segments">
+        <button id="incSegments" aria-label="Increase segments">+</button>
+      </div>
+
+      <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+        <label for="autoClamp" style="font-size:13px; color:var(--muted);">Clamp when lowering</label>
+        <input id="autoClamp" type="checkbox" checked aria-label="Clamp count when lowering segments" />
+      </div>
+    </div>
+
+    <div class="bars-wrap" id="barsWrap" role="group" aria-label="Hydration segments">
+      <!-- JS generates segments here -->
+    </div>
+
+    <div class="controls">
+      <button id="undo" title="Remove one sip">Undo</button>
+      <button id="reset" title="Reset today's count">Reset</button>
+    </div>
+
+    <div class="footer">Progress is stored locally per-day. To embed into Notion host this file on a public HTTPS URL.</div>
+
+    <!-- confetti canvas overlay (positioned absolute inside widget) -->
+    <canvas id="confettiCanvas" width="800" height="240" aria-hidden="true"></canvas>
+  </div>
+
+  <script>
+    (function(){
+      // CONFIG
+      const DEFAULT_SEGMENTS = 8;
+      const MIN_SEGMENTS = 1;
+      const MAX_SEGMENTS = 64;    // arbitrary safe upper bound for layout
+      const KEY = 'notion-energy-bar-dynamic-v1';
+
+      // DOM
+      const widget = document.getElementById('widget');
+      const barsWrap = document.getElementById('barsWrap');
+      const statusText = document.getElementById('statusText');
+      const undoBtn = document.getElementById('undo');
+      const resetBtn = document.getElementById('reset');
+      const decSegments = document.getElementById('decSegments');
+      const incSegments = document.getElementById('incSegments');
+      const segmentsInput = document.getElementById('segmentsInput');
+      const autoClamp = document.getElementById('autoClamp');
+      const confettiCanvas = document.getElementById('confettiCanvas');
+      const confettiCtx = confettiCanvas.getContext?.('2d');
+
+      // Helpers: date-keyed per-day state
+      function todayKey(){
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      }
+
+      function loadState(){
+        try{
+          const raw = localStorage.getItem(KEY);
+          if(!raw) return { date: todayKey(), count: 0, segments: DEFAULT_SEGMENTS, _celebrated: false };
+          const parsed = JSON.parse(raw);
+          // if day changed, reset count but keep user segments preference
+          if(!parsed || parsed.date !== todayKey()){
+            return {
+              date: todayKey(),
+              count: 0,
+              segments: Math.min(MAX_SEGMENTS, Math.max(MIN_SEGMENTS, Number(parsed?.segments) || DEFAULT_SEGMENTS)),
+              _celebrated: false
+            };
+          }
+          return {
+            date: parsed.date || todayKey(),
+            count: Math.max(0, Number(parsed.count) || 0),
+            segments: Math.min(MAX_SEGMENTS, Math.max(MIN_SEGMENTS, Number(parsed.segments) || DEFAULT_SEGMENTS)),
+            _celebrated: !!parsed._celebrated
+          };
+        }catch(e){
+          return { date: todayKey(), count: 0, segments: DEFAULT_SEGMENTS, _celebrated: false };
+        }
+      }
+      function saveState(s){
+        try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){}
+      }
+
+      // State
+      let state = loadState();
+      saveState(state);
+
+      // render bars based on state.segments
+      function renderBars(){
+        barsWrap.innerHTML = '';
+        const n = state.segments;
+        for(let i=0;i<n;i++){
+          const bar = document.createElement('div');
+          bar.className = 'bar';
+          bar.tabIndex = 0;
+          bar.setAttribute('role','button');
+          bar.setAttribute('aria-label','Segment ' + (i+1) + '. Click to set to ' + (i+1) + ' sips.');
+          bar.dataset.index = i;
+
+          const fill = document.createElement('div');
+          fill.className = 'fill';
+          fill.style.height = '0%';
+          fill.setAttribute('aria-hidden','true');
+
+          const badge = document.createElement('div');
+          badge.className = 'badge';
+          badge.textContent = (i+1);
+
+          fill.appendChild(badge);
+          bar.appendChild(fill);
+          barsWrap.appendChild(bar);
+        }
+
+        // wire events for newly created bars
+        const bars = Array.from(barsWrap.querySelectorAll('.bar'));
+        bars.forEach(bar => {
+          const idx = Number(bar.dataset.index);
+          bar.addEventListener('click', () => {
+            const target = idx + 1;
+            // clicking toggles: if already equal -> set to target-1, else set to target
+            if(state.count === target){
+              setCount(target - 1);
+            } else {
+              setCount(target);
+            }
+          });
+
+          bar.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter' || e.key === ' '){
+              e.preventDefault();
+              bar.click();
+            }
+            if(e.key === 'ArrowLeft'){
+              e.preventDefault();
+              const prev = bars[Math.max(0, idx-1)];
+              prev?.focus();
+            }
+            if(e.key === 'ArrowRight'){
+              e.preventDefault();
+              const next = bars[Math.min(bars.length-1, idx+1)];
+              next?.focus();
+            }
+          });
+        });
+
+        updateUI();
+      }
+
+      // update UI to reflect state.count and state.segments
+      function updateUI(){
+        const n = state.segments;
+        const count = state.count;
+        const pct = Math.round((n === 0) ? 0 : (count / n) * 100);
+        statusText.textContent = count + ' / ' + n + ' (' + pct + '%)';
+        // update input value
+        segmentsInput.value = n;
+
+        const bars = Array.from(barsWrap.querySelectorAll('.bar'));
+        bars.forEach((bar, idx) => {
+          const fill = bar.querySelector('.fill');
+          if(idx < count){
+            bar.classList.add('filled');
+            fill.style.height = '100%';
+            fill.style.background = 'linear-gradient(180deg,#3fb8ff,#7ad0ff)';
+            bar.setAttribute('aria-pressed','true');
+          }else{
+            bar.classList.remove('filled');
+            // when the next segment is "active" show a small hint height
+            if(idx === count){
+              fill.style.height = '20%';
+              fill.style.background = 'linear-gradient(180deg,#d4f1ff, #e8f8ff)';
+            } else {
+              fill.style.height = '0%';
+              fill.style.background = 'linear-gradient(180deg,#d4f1ff, #e8f8ff)';
+            }
+            bar.setAttribute('aria-pressed','false');
+          }
+        });
+
+        // celebrate when full
+        if(n > 0 && count >= n && !state._celebrated){
+          state._celebrated = true;
+          saveState(state);
+          burstConfetti();
+        }
+      }
+
+      // set count with clamps
+      function setCount(newCount){
+        newCount = Math.max(0, Math.min(state.segments, Math.round(newCount)));
+        state.count = newCount;
+        state.date = todayKey();
+        if(state.count < state.segments) state._celebrated = false;
+        saveState(state);
+        updateUI();
+      }
+
+      // Change number of segments
+      function setSegments(newN){
+        newN = Math.max(MIN_SEGMENTS, Math.min(MAX_SEGMENTS, Math.round(newN)));
+        const prev = state.segments;
+        state.segments = newN;
+
+        // If lowering and autoClamp enabled, clamp count down to new segments.
+        if(newN < prev){
+          const clamp = autoClamp.checked;
+          if(clamp){
+            state.count = Math.min(state.count, newN);
+            // reset celebrated if not full anymore
+            if(state.count < state.segments) state._celebrated = false;
+          } else {
+            // if not clamping and count exceeds newN, keep count but visually limit (we will clamp on save)
+            if(state.count > newN){
+              // clamp in storage to avoid inconsistent state across reloads
+              state.count = Math.min(state.count, newN);
+              state._celebrated = state.count >= state.segments;
+            }
+          }
+        }
+
+        state.date = todayKey();
+        saveState(state);
+        renderBars();
+      }
+
+      // Undo / Reset buttons
+      undoBtn.addEventListener('click', ()=>{
+        if(state.count <= 0) return;
+        setCount(state.count - 1);
+      });
+
+      resetBtn.addEventListener('click', ()=>{
+        if(confirm("Reset today's progress to 0?")) setCount(0);
+      });
+
+      // segments stepper events
+      incSegments.addEventListener('click', ()=> setSegments(state.segments + 1));
+      decSegments.addEventListener('click', ()=> setSegments(state.segments - 1));
+      segmentsInput.addEventListener('change', (e)=>{
+        const v = Number(segmentsInput.value) || DEFAULT_SEGMENTS;
+        setSegments(v);
+      });
+      segmentsInput.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter'){
+          const v = Number(segmentsInput.value) || DEFAULT_SEGMENTS;
+          setSegments(v);
+        }
+      });
+
+      // Auto-reset at midnight (check every 30s)
+      setInterval(() => {
+        const current = todayKey();
+        if(state.date !== current){
+          state.date = current;
+          state.count = 0;
+          state._celebrated = false;
+          saveState(state);
+          updateUI();
+        }
+      }, 30*1000);
+
+      // Simple confetti burst (no libs)
+      function burstConfetti(){
+        if(!confettiCtx) return;
+        const canvas = confettiCanvas;
+        // size canvas to widget width
+        const rect = widget.getBoundingClientRect();
+        canvas.width = Math.min(1200, Math.max(rect.width, 320));
+        canvas.height = Math.min(360, Math.max(180, rect.height + 120));
+        canvas.style.width = canvas.width + 'px';
+        canvas.style.height = canvas.height + 'px';
+        confettiCtx.clearRect(0,0,canvas.width,canvas.height);
+
+        const w = canvas.width, h = canvas.height;
+        const pieces = Math.min(80, Math.max(24, Math.round(state.segments * 6)));
+        const particles = [];
+        for(let i=0;i<pieces;i++){
+          particles.push({
+            x: w/2 + (Math.random()-0.5)*120,
+            y: h*0.25 + Math.random()*40,
+            vx: (Math.random()-0.5)*8,
+            vy: -Math.random()*8 - 2,
+            size: Math.random()*6 + 4,
+            color: ['#0b84ff','#7ad0ff','#64e0ff','#9be7ff','#0578d6'][Math.floor(Math.random()*5)],
+            life: Math.random()*80 + 40,
+            rot: Math.random()*Math.PI*2
+          });
+        }
+        let anim;
+        function frame(){
+          confettiCtx.clearRect(0,0,w,h);
+          let alive = false;
+          for(const p of particles){
+            if(p.life > 0){
+              alive = true;
+              p.life--;
+              p.vy += 0.25;
+              p.x += p.vx;
+              p.y += p.vy;
+              p.rot += 0.12;
+              confettiCtx.save();
+              confettiCtx.translate(p.x, p.y);
+              confettiCtx.rotate(p.rot);
+              confettiCtx.fillStyle = p.color;
+              confettiCtx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.7);
+              confettiCtx.restore();
+            }
+          }
+          if(alive) anim = requestAnimationFrame(frame);
+          else confettiCtx.clearRect(0,0,w,h);
+        }
+        cancelAnimationFrame(anim);
+        frame();
+      }
+
+      // initial render
+      segmentsInput.value = state.segments;
+      renderBars();
+
+      // expose for debugging
+      window.__energyBarDynamic = {
+        getState: ()=> JSON.parse(JSON.stringify(state)),
+        setSegments,
+        setCount,
+        reset: ()=> setCount(0)
+      };
+
+    })();
+  </script>
+</body>
+</html>
