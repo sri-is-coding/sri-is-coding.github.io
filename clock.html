@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pastel Pearl Pill Clock</title>
+
+  <!-- Elegant handwritten-style font -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .clock {
+      background: #F3EFEA; /* pastel pearl */
+      padding: 16px 42px;
+      border-radius: 999px; /* pill shape */
+      box-shadow: 0 12px 32px rgba(0,0,0,0.14);
+      width: 140px; /* locked width */
+      text-align: center;
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      color: #1E1E1E;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .time {
+      font-size: 38px;
+      letter-spacing: 1px;
+      text-shadow: 2px 2px 6px rgba(0,0,0,0.22);
+    }
+
+    .meta {
+      font-size: 14px;
+      opacity: 0.65;
+      margin-left: 6px;
+      vertical-align: super;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="clock">
+    <span class="time" id="time">12:00</span>
+    <span class="meta" id="meta">00 AM</span>
+  </div>
+
+  <script>
+    function updateClock() {
+      const now = new Date();
+
+      let hours = now.getHours();
+      let minutes = now.getMinutes();
+      let seconds = now.getSeconds();
+      let ampm = hours >= 12 ? "PM" : "AM";
+
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+
+      minutes = minutes < 10 ? "0" + minutes : minutes;
+      seconds = seconds < 10 ? "0" + seconds : seconds;
+
+      document.getElementById("time").innerText = `${hours}:${minutes}`;
+      document.getElementById("meta").innerText = `${seconds} ${ampm}`;
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+  </script>
+</body>
+</html>
